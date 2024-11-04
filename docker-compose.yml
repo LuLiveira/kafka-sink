@@ -1,0 +1,38 @@
+networks:
+  kafka-network:
+
+services: # Definindo os serviços que vamos utilizar
+  fast-data-dev: # Primeiro serviço/imagem - fast-data-dev  (Imagem contendo o Kafka e seus componentes complementares)
+    image: landoop/fast-data-dev:latest # Imagem
+    ports: # Portas expostas fazem de/para entre a porta do docker x computador
+      - "2181:2181"
+      - "3030:3030"
+      - "8081-8083:8081-8083"
+      - "9581-9585:9581-9585"
+      - "9092:9092"
+    environment: # Variaveis de ambiente
+      ADV_HOST: 127.0.0.1
+      DEBUG: 1
+      RUNTESTS: 0
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      CONNECT_PLUGIN_PATH: /var/run/connect/connectors/stream-reactor,/var/run/connect/connectors/third-party,/connectors
+    volumes: # Local onde ficará o plugin do Sink
+      - ./plugins:/connectors/kafka-connect-lambda-localstack
+    network_mode: 'host'
+
+  localstack: # Segundo serviço/imagem - local-stack
+    container_name: "${LOCALSTACK_DOCKER_NAME-localstack-main}"
+    image: localstack/localstack:2.3
+    ports:
+      - "127.0.0.1:4566:4566"            # LocalStack Gateway
+      - "127.0.0.1:4510-4559:4510-4559"  # external services port range
+    environment:
+      - DEBUG=${DEBUG-}
+      - DOCKER_HOST=unix:///var/run/docker.sock
+      - EXTRA_CORS_ALLOWED_ORIGINS=https://app.localstack.cloud,http://localhost:3000
+    volumes:
+      - "${LOCALSTACK_VOLUME_DIR:-./volume}:/var/lib/localstack"
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    depends_on: [fast-data-dev]
+    network_mode: 'host'
